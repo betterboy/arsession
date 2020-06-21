@@ -20,7 +20,8 @@ void ar_session_debug(ar_session_t *ar_sess)
 
 static int ar_canlog(ar_session_t *ar_sess)
 {
-    if (ar_sess->canlog == 0 || ar_sess->write_log == NULL) return 0;
+    if (ar_sess->canlog == 0 || ar_sess->write_log == NULL)
+        return 0;
     return 1;
 }
 
@@ -145,16 +146,23 @@ static void init_packet_header(ar_header_t *header, uint64_t *offset, uint64_t d
 
 void mbuf_add_number_with_type(mbuf_t *mbuf, uint64_t n)
 {
-    if (n <= UCHAR_MAX) {
+    if (n <= UCHAR_MAX)
+    {
         unsigned char tmp = (unsigned char)n;
         MBUF_ENQ_WITH_TYPE(mbuf, &tmp, unsigned char);
-    } else if (n <= USHRT_MAX) {
+    }
+    else if (n <= USHRT_MAX)
+    {
         unsigned short tmp = (unsigned short)n;
         MBUF_ENQ_WITH_TYPE(mbuf, &tmp, unsigned short);
-    } else if (n <= UINT32_MAX) {
+    }
+    else if (n <= UINT32_MAX)
+    {
         uint32_t tmp = (uint32_t)n;
         MBUF_ENQ_WITH_TYPE(mbuf, &tmp, uint32_t);
-    } else {
+    }
+    else
+    {
         uint64_t tmp = (uint64_t)n;
         MBUF_ENQ_WITH_TYPE(mbuf, &tmp, uint64_t);
     }
@@ -163,8 +171,10 @@ void mbuf_add_number_with_type(mbuf_t *mbuf, uint64_t n)
 //上层应用发送数据时，调用此接口对协议数据进行打包缓存，然后在从ar_session取出打包后的数据发送。
 uint32_t ar_send(ar_session_t *ar_sess, const char *data, uint32_t len)
 {
-    if (ar_sess->send_raw_buf->data_size + len >= ar_sess->max_raw_send_buf_size) {
-        if (ar_canlog(ar_sess)) {
+    if (ar_sess->send_raw_buf->data_size + len >= ar_sess->max_raw_send_buf_size)
+    {
+        if (ar_canlog(ar_sess))
+        {
             ar_log(ar_sess, "ar_send error, send buf overflow. %s, %d/%d\n", __func__, ar_sess->send_raw_buf->data_size + len, ar_sess->max_raw_send_buf_size);
         }
         return -1;
@@ -186,7 +196,8 @@ uint32_t ar_resend_raw(ar_session_t *ar_sess)
 {
     ar_header_t header;
     uint32_t data_size = ar_sess->send_raw_buf->data_size;
-    if (data_size <= 0) {
+    if (data_size <= 0)
+    {
         return 0;
     }
 
@@ -221,13 +232,18 @@ void ar_send_ack_and_raw(ar_session_t *ar_sess, const char *data, uint32_t len)
 //收到对端的ack，删除发送缓存buff数据
 uint64_t ar_on_recv_ack(ar_session_t *ar_sess, uint64_t offset)
 {
-    if (ar_sess->remote_raw_offset == offset) {
-        if (ar_canlog(ar_sess)) {
+    if (ar_sess->remote_raw_offset == offset)
+    {
+        if (ar_canlog(ar_sess))
+        {
             ar_log(ar_sess, "warning: local offset == remove offset. %s: offset=%ul, remote=%ul\n", __func__, ar_sess->remote_raw_offset, offset);
         }
         return 0;
-    } else if (ar_sess->remote_raw_offset > offset) {
-        if (ar_canlog(ar_sess)) {
+    }
+    else if (ar_sess->remote_raw_offset > offset)
+    {
+        if (ar_canlog(ar_sess))
+        {
             ar_log(ar_sess, "error: local offset > remove offset. %s: offset=%ul, remote=%lu\n", __func__, ar_sess->remote_raw_offset, offset);
         }
         return -1;
@@ -235,8 +251,10 @@ uint64_t ar_on_recv_ack(ar_session_t *ar_sess, uint64_t offset)
 
     //本次确认的字节数不能比缓存的多
     uint64_t delta = offset - ar_sess->send_raw_buf->data_size;
-    if (delta > ar_sess->send_raw_buf->data_size) {
-        if (ar_canlog(ar_sess)) {
+    if (delta > ar_sess->send_raw_buf->data_size)
+    {
+        if (ar_canlog(ar_sess))
+        {
             ar_log(ar_sess, "error: send raw buf size < ack delta. %s: delta=%ul, send_raw_buf size=%ul\n", __func__, delta, ar_sess->send_raw_buf->data_size);
         }
         return -1;
@@ -254,25 +272,27 @@ uint32_t ar_on_recv_data(ar_session_t *ar_sess, const char *data, uint32_t len)
     ar_sess->recv_raw_offset += len;
 
     ar_sess->auto_ack_recv_count += len;
-    if (ar_sess->auto_ack_recv_count >= ar_sess->auto_ack_threashhold) {
+    if (ar_sess->auto_ack_recv_count >= ar_sess->auto_ack_threashhold)
+    {
         ar_send_ack(ar_sess);
     }
 
     return len;
 }
 
-#define READ_TYPE(p, end, dest, type) \
-    if (p + sizeof(type) - 1 > end) { \
+#define READ_TYPE(p, end, dest, type)  \
+    if (p + sizeof(type) - 1 > end)    \
+    {                                  \
         return AR_DECODE_HEADER_ERROR; \
-    } \
-    *dest = *((type*)(p)); \
-    p += sizeof(type); \
+    }                                  \
+    *dest = *((type *)(p));            \
+    p += sizeof(type);                 \
     break;
 
 //解析数据包头部信息
 static int ar_parse_header(ar_header_t *header, uint32_t total_len, uint64_t *ack_offset, uint32_t *data_size, char **pdata, uint32_t *pkg_len)
 {
-    const char *p = (const char *)(header + 1); //指向header之后的第一个字节
+    const char *p = (const char *)(header + 1);             //指向header之后的第一个字节
     const char *end = (const char *)header + total_len - 1; //指向数据包的最后一个字节
     *ack_offset = 0;
     *data_size = 0;
@@ -281,23 +301,28 @@ static int ar_parse_header(ar_header_t *header, uint32_t total_len, uint64_t *ac
 
     switch (header->ack_size_type)
     {
-    case SIZE_TYPE_NONE: {
+    case SIZE_TYPE_NONE:
+    {
         *ack_offset = 0;
         break;
     }
-    case SIZE_TYPE_UINT8: {
+    case SIZE_TYPE_UINT8:
+    {
         READ_TYPE(p, end, ack_offset, uint8_t)
     }
-    case SIZE_TYPE_UINT16: {
+    case SIZE_TYPE_UINT16:
+    {
         READ_TYPE(p, end, ack_offset, uint16_t)
     }
-    case SIZE_TYPE_UINT32: {
+    case SIZE_TYPE_UINT32:
+    {
         READ_TYPE(p, end, ack_offset, uint32_t)
     }
-    case SIZE_TYPE_UINT64: {
+    case SIZE_TYPE_UINT64:
+    {
         READ_TYPE(p, end, ack_offset, uint64_t)
     }
-    
+
     default:
         fprintf(stderr, "invalid header->ack_size_type. %s, ack_size_type=%d\n", __func__, header->ack_size_type);
         return AR_DECODE_HEADER_ERROR;
@@ -308,16 +333,20 @@ static int ar_parse_header(ar_header_t *header, uint32_t total_len, uint64_t *ac
     case SIZE_TYPE_NONE:
         *data_size = 0;
         break;
-    case SIZE_TYPE_UINT8: {
+    case SIZE_TYPE_UINT8:
+    {
         READ_TYPE(p, end, data_size, uint8_t);
     }
-    case SIZE_TYPE_UINT16: {
+    case SIZE_TYPE_UINT16:
+    {
         READ_TYPE(p, end, data_size, uint16_t);
     }
-    case SIZE_TYPE_UINT32: {
+    case SIZE_TYPE_UINT32:
+    {
         READ_TYPE(p, end, data_size, uint32_t);
     }
-    case SIZE_TYPE_UINT64: {
+    case SIZE_TYPE_UINT64:
+    {
         READ_TYPE(p, end, data_size, uint32_t);
     }
     default:
@@ -325,8 +354,9 @@ static int ar_parse_header(ar_header_t *header, uint32_t total_len, uint64_t *ac
         return AR_DECODE_HEADER_ERROR;
     }
 
-    if (*data_size > 0 && (p + *data_size - 1) > end) {
-        return  AR_DECODE_HEADER_LACK;
+    if (*data_size > 0 && (p + *data_size - 1) > end)
+    {
+        return AR_DECODE_HEADER_LACK;
     }
 
     *pdata = p;
@@ -345,36 +375,45 @@ uint32_t ar_input(ar_session_t *ar_sess, const char *data, uint32_t data_len)
     uint32_t data_size = 0, pkg_len = 0, drain_len = 0;
     int ret = 0, use_buf = 0;
 
-    if (ar_sess->recv_buf->data_size <= 0) {
+    if (ar_sess->recv_buf->data_size <= 0)
+    {
         pinput = data;
-    } else {
+    }
+    else
+    {
         use_buf = 1;
         mbuf_add(ar_sess->recv_buf, data, data_len);
         pinput = mbuf_pullup(ar_sess->recv_buf);
         data_len = ar_sess->recv_buf->data_size;
     }
 
-    while (1) {
-        if (data_len <= sizeof(ar_header_t)) {
+    while (1)
+    {
+        if (data_len <= sizeof(ar_header_t))
+        {
             //如果剩余包的长度不足，则留待下次一起解析
-            if (!use_buf) {
+            if (!use_buf)
+            {
                 mbuf_add(ar_sess->recv_buf, pinput, data_len);
             }
 
             break;
         }
 
-        header = (ar_header_t*)pinput;
+        header = (ar_header_t *)pinput;
         ack_offset = data_size = pkg_len = 0;
         ret = ar_parse_header(header, data_len, &ack_offset, &data_size, &data_frag, &pkg_len);
-        if (ret == AR_DECODE_HEADER_OK) {
+        if (ret == AR_DECODE_HEADER_OK)
+        {
             //解包成功
-            if (ack_offset > 0) {
+            if (ack_offset > 0)
+            {
                 //收到ack
                 ar_on_recv_ack(ar_sess, ack_offset);
             }
 
-            if (data_size > 0) {
+            if (data_size > 0)
+            {
                 //收到数据
                 ar_on_recv_data(ar_sess, data_frag, data_size);
             }
@@ -382,13 +421,19 @@ uint32_t ar_input(ar_session_t *ar_sess, const char *data, uint32_t data_len)
             drain_len += pkg_len;
             pinput += pkg_len;
             data_len -= pkg_len;
-        } else if (ret == AR_DECODE_HEADER_LACK) {
+        }
+        else if (ret == AR_DECODE_HEADER_LACK)
+        {
             //包的数据不够解析，插入mbuf，等其他数据一起解析
-            if (!use_buf) {
+            if (!use_buf)
+            {
                 mbuf_add(ar_sess->recv_buf, pinput, data_len);
             }
-        } else {
-            if (ar_canlog(ar_sess)) {
+        }
+        else
+        {
+            if (ar_canlog(ar_sess))
+            {
                 ar_log(ar_sess, "parse header error: ret=%d\n", ret);
             }
 
@@ -397,7 +442,8 @@ uint32_t ar_input(ar_session_t *ar_sess, const char *data, uint32_t data_len)
         }
     }
 
-    if (use_buf && drain_len > 0) {
+    if (use_buf && drain_len > 0)
+    {
         mbuf_drain(ar_sess->recv_buf, drain_len);
     }
 
