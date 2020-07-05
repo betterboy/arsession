@@ -59,6 +59,11 @@ mbuf_blk_t *mbuf_add_blk(mbuf_t *mbuf, uint32_t size)
     mbuf->blk_enq = blk;
     mbuf->alloc_size += size;
 
+    if (mbuf->blk_deq == NULL)
+    {
+        mbuf->blk_deq = mbuf->blk_enq;
+    }
+
     if (can_log(mbuf))
     {
         printf("add new blk: cnt=%lu,id=%d,size=%lu,total_alloc=%lu,data_size=%lu\n", mbuf->blk_count, blk->blk_id, size, mbuf->alloc_size, mbuf->data_size);
@@ -131,7 +136,7 @@ uint32_t mbuf_copy(mbuf_t *mbuf, void *buf, uint32_t size)
     {
         uint32_t payload = blk->tail - blk->head;
         uint32_t data_len = payload < size ? payload : size;
-        memcpy(buf + offset, blk->head, data_len);
+        memcpy((char *)buf + offset, blk->head, data_len);
         offset += data_len;
         size -= data_len;
         blk = blk->next;

@@ -29,10 +29,13 @@ typedef struct ar_header_s
     unsigned char data_size_type : 4; //data数据长度的类型
 } ar_header_t;
 
+struct ar_session_s;
 typedef struct ar_session_s
 {
     int session_id; //暂时没有用到，但是整合到引擎中肯定会用到
     void *ud;       //用户数据
+
+    uint64_t total_send;
 
     uint64_t recv_raw_offset;       //收到的协议原始数据的字节数
     uint64_t remote_raw_offset;     //远端确认收到的字节数
@@ -48,7 +51,7 @@ typedef struct ar_session_s
     mbuf_t *recv_raw_buf; //收到到的原始协议数据
 
     int canlog;
-    void (*write_log)(const char *data, ar_session_t *ar_sess, void *ud);
+    void (*write_log)(const char *data, struct ar_session_s *ar_sess, void *ud);
 
 } ar_session_t;
 
@@ -80,7 +83,14 @@ extern "C"
 
     //TODO: buf相关操作，考虑改用ringbuf，去掉内存的分配和释放消耗
     //接收buf
-    const char *ar_pull_recv_raw_buf(ar_session_t *ar_sess);
+    const char *ar_pullup_recv_raw_buf(ar_session_t *ar_sess);
+    void ar_drain_recv_raw_buf(ar_session_t *ar_sess, uint32_t len);
+    uint32_t ar_get_recv_raw_buf_length(ar_session_t *ar_sess);
+    uint64_t ar_get_recv_raw_offset(ar_session_t *ar_sess);
+
+    const char *ar_pullup_send_buf(ar_session_t *ar_sess);
+    uint32_t ar_get_send_buf_length(ar_session_t *ar_sess);
+    void ar_drain_send_buf(ar_session_t *ar_sess, uint32_t len);
 
 #if defined(__cplusplus)
 }

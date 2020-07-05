@@ -96,7 +96,7 @@ void ar_session_reset(ar_session_t *ar_sess)
     mbuf_reset(ar_sess->recv_raw_buf, MBUF_INIT_SIZE);
 }
 
-static void init_packet_header(ar_header_t *header, uint64_t *offset, uint64_t data_size)
+static void init_packet_header(ar_header_t *header, uint64_t offset, uint64_t data_size)
 {
     memset(header, 0, sizeof(header));
     //初始化ack部分的长度类型
@@ -182,11 +182,12 @@ uint32_t ar_send(ar_session_t *ar_sess, const char *data, uint32_t len)
 
     ar_header_t header;
     init_packet_header(&header, 0, len);
-
-    mbuf_add(ar_sess->send_buf, &header, sizeof(header));
+    MBUF_ENQ_WITH_TYPE(ar_sess->send_buf, &header, ar_header_t);
+    // mbuf_add(ar_sess->send_buf, (const char *)&header, sizeof(header));
     mbuf_add_number_with_type(ar_sess->send_buf, len);
     mbuf_add(ar_sess->send_buf, data, len);
     mbuf_add(ar_sess->send_raw_buf, data, len);
+    ar_sess->total_send += len;
 
     return len;
 }
@@ -202,10 +203,10 @@ uint32_t ar_resend_raw(ar_session_t *ar_sess)
     }
 
     mbuf_reset(ar_sess->send_buf, MBUF_INIT_SIZE);
-    const char *data = mbuf_pullup(ar_sess->send_raw_buf);
+    const char *data = (const char *)mbuf_pullup(ar_sess->send_raw_buf);
 
     init_packet_header(&header, 0, data_size);
-    mbuf_add(ar_sess->send_buf, &header, sizeof(header));
+    MBUF_ENQ_WITH_TYPE(ar_sess->send_buf, &header, ar_header_t);
     mbuf_add_number_with_type(ar_sess->send_buf, data_size);
     mbuf_add(ar_sess->send_buf, data, data_size);
 
@@ -216,9 +217,9 @@ uint32_t ar_resend_raw(ar_session_t *ar_sess)
 uint32_t ar_send_ack(ar_session_t *ar_sess)
 {
     ar_header_t header;
-    init_packet_header(&header, ar_sess->remote_raw_offset, 0);
-    mbuf_add(ar_sess->send_buf, &header, sizeof(header));
-    mbuf_add_number_with_type(ar_sess->send_buf, ar_sess->remote_raw_offset);
+    init_packet_header(&header, ar_sess->recv_raw_offset, 0);
+    MBUF_ENQ_WITH_TYPE(ar_sess->send_buf, &header, ar_header_t);
+    mbuf_add_number_with_type(ar_sess->send_buf, ar_sess->recv_raw_offset);
     ar_sess->auto_ack_recv_count = 0;
     return 0;
 }
@@ -290,7 +291,7 @@ uint32_t ar_on_recv_data(ar_session_t *ar_sess, const char *data, uint32_t len)
     break;
 
 //解析数据包头部信息
-static int ar_parse_header(ar_header_t *header, uint32_t total_len, uint64_t *ack_offset, uint32_t *data_size, char **pdata, uint32_t *pkg_len)
+static int ar_parse_header(ar_header_t *header, uint32_t total_len, uint64_t *ack_offset, uint32_t *data_size, const char **pdata, uint32_t *pkg_len)
 {
     const char *p = (const char *)(header + 1);             //指向header之后的第一个字节
     const char *end = (const char *)header + total_len - 1; //指向数据包的最后一个字节
@@ -383,7 +384,7 @@ uint32_t ar_input(ar_session_t *ar_sess, const char *data, uint32_t data_len)
     {
         use_buf = 1;
         mbuf_add(ar_sess->recv_buf, data, data_len);
-        pinput = mbuf_pullup(ar_sess->recv_buf);
+        pinput = (const char *)mbuf_pullup(ar_sess->recv_buf);
         data_len = ar_sess->recv_buf->data_size;
     }
 
@@ -453,5 +454,36 @@ uint32_t ar_input(ar_session_t *ar_sess, const char *data, uint32_t data_len)
 //TODO: 提供一些操作mbuf的辅助函数
 const char *ar_pull_recv_raw_buf(ar_session_t *ar_sess)
 {
-    return mbuf_pullup(ar_sess->recv_raw_buf);
+    return (const char *)mbuf_pullup(ar_sess->recv_raw_buf);
+}
+
+void ar_drain_recv_raw_buf(ar_session_t *ar_sess, uint32_t len)
+{
+    mbuf_drain(ar_sess->recv_raw_buf, len);
+}
+
+uint32_t ar_get_recv_raw_buf_length(ar_session_t *ar_sess)
+{
+    return ar_sess->recv_raw_buf->data_size;
+}
+
+uint64_t ar_get_recv_raw_offset(ar_session_t *ar_sess)
+{
+    return ar_sess->recv_raw_offset;
+}
+
+
+const char *ar_pullup_send_buf(ar_session_t *ar_sess)
+{
+    return (const char *)mbuf_pullup(ar_sess->send_buf);
+}
+
+uint32_t ar_get_send_buf_length(ar_session_t *ar_sess)
+{
+    return ar_sess->send_buf->data_size;
+}
+
+void ar_drain_send_buf(ar_session_t *ar_sess, uint32_t len)
+{
+    mbuf_drain(ar_sess->send_buf, len);
 }
